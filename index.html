@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CIMECHEL ELECTRIC — Attendance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Noto+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --navy:#1A5276; --blue:#2E86C1; --green:#1E8449; --red:#C0392B;
+    --purple:#7D3C98; --teal:#117A65; --yellow:#7D6608; --bg:#F0F4F8;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Noto Sans',sans-serif; background:var(--bg); min-height:100vh; }
+
+  .topbar {
+    background:linear-gradient(135deg,var(--navy) 0%,#154360 100%);
+    padding:10px 18px; display:flex; align-items:center;
+    justify-content:space-between; gap:12px; flex-wrap:wrap;
+    box-shadow:0 3px 12px rgba(0,0,0,0.25); position:sticky; top:0; z-index:100;
+  }
+  .topbar h1 { font-family:'Rajdhani',sans-serif; font-size:1.4rem; font-weight:700; color:#fff; letter-spacing:1px; white-space:nowrap; }
+  .topbar h1 span { color:#5DADE2; }
+  .controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .controls label { color:#AED6F1; font-size:0.78rem; font-weight:600; text-transform:uppercase; }
+  .controls select, .controls input {
+    background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25);
+    color:#fff; padding:5px 10px; border-radius:6px; font-size:0.85rem;
+    font-family:'Noto Sans',sans-serif; cursor:pointer; outline:none;
+  }
+  .controls select option { background:#1A5276; color:#fff; }
+  .btn { padding:7px 16px; border:none; border-radius:7px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:0.95rem; cursor:pointer; transition:all 0.18s; }
+  .btn-export { background:linear-gradient(135deg,#27AE60,#1E8449); color:#fff; box-shadow:0 2px 8px rgba(39,174,96,0.35); }
+  .btn-export:hover { transform:translateY(-1px); }
+  .btn-reset { background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); }
+
+  .legend-bar {
+    background:#FEF9E7; border-bottom:2px solid #F4D03F;
+    padding:6px 18px; display:flex; gap:14px; flex-wrap:wrap; align-items:center; font-size:0.76rem; font-weight:600;
+  }
+  .legend-item { display:flex; align-items:center; gap:4px; }
+  .legend-dot { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+
+  .table-wrap { overflow-x:auto; padding:12px 10px 30px; }
+  table { border-collapse:collapse; font-size:0.77rem; min-width:100%; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 2px 16px rgba(0,0,0,0.1); }
+
+  .h-main th {
+    background:var(--navy); color:#fff; padding:4px 4px;
+    text-align:center; font-family:'Rajdhani',sans-serif; font-size:0.8rem;
+    font-weight:700; white-space:pre; border:1px solid rgba(255,255,255,0.1);
+  }
+  .h-main th.sun-col { background:#7D6608; color:#FEF9E7; }
+  .h-main th.sat-col { background:#1E5631; color:#D5F5E3; }
+  .h-main th.s-p   { background:#1E8449; }
+  .h-main th.s-od  { background:#566573; }
+  .h-main th.s-wo  { background:#7D6608; }
+  .h-main th.s-hd  { background:#2471A3; }
+  .h-main th.s-a   { background:#C0392B; }
+  .h-main th.s-l   { background:#884EA0; }
+  .h-main th.s-ho  { background:#1A5276; }
+  .h-main th.s-tot { background:#117A65; }
+  .h-main th.s-pp  { background:#7D3C98; }
+  .h-main th.s-tp  { background:#922B21; font-size:0.85rem; }
+
+  .h-day th { background:#EBF5FB; color:#1A5276; padding:3px 3px; text-align:center; font-size:0.68rem; font-weight:600; border:1px solid #D6EAF8; }
+  .h-day th.sun-col { background:#FEF9E7; color:#7D6608; }
+  .h-day th.sat-col { background:#D5F5E3; color:#1E5631; }
+
+  tr.data-row:nth-child(odd)  td { background:#EBF5FB; }
+  tr.data-row:nth-child(even) td { background:#FDFEFE; }
+  td { padding:3px 3px; text-align:center; border:1px solid #D6EAF8; vertical-align:middle; }
+  td.td-sno   { width:26px; font-weight:700; color:var(--navy); font-size:0.74rem; }
+  td.td-name  { text-align:left; padding-left:7px; font-weight:600; font-size:0.79rem; min-width:125px; white-space:nowrap; }
+  td.td-desig { text-align:left; padding-left:5px; color:#555; font-size:0.73rem; min-width:85px; }
+
+  td.day-cell { width:26px; min-width:26px; padding:1px; }
+  td.day-cell.is-sun { background:#FEF9E7 !important; }
+
+  select.entry {
+    width:100%; border:none; background:transparent;
+    font-family:'Noto Sans',sans-serif; font-size:0.72rem; font-weight:700;
+    text-align:center; cursor:pointer; outline:none; padding:2px 0;
+    appearance:none; -webkit-appearance:none;
+  }
+  select.entry:focus { outline:2px solid var(--blue); border-radius:3px; }
+
+  .val-P  { color:#1E8449; } .val-A  { color:#C0392B; }
+  .val-HD { color:#2471A3; } .val-L  { color:#884EA0; }
+  .val-HO { color:#1A5276; } .val-OT { color:#7D3C98; }
+  .val-WD { color:#7D6608; }
+
+  .bg-P  { background:#EAFAF1 !important; } .bg-A  { background:#FDEDEC !important; }
+  .bg-HD { background:#D6EAF8 !important; } .bg-L  { background:#F5EEF8 !important; }
+  .bg-HO { background:#EBF5FB !important; } .bg-OT { background:#E8DAEF !important; }
+  .bg-WD { background:#FEF9E7 !important; }
+
+  td.s-p   { color:#1E8449; background:#EAFAF1 !important; font-weight:700; }
+  td.s-od  { color:#566573; background:#F2F3F4 !important; font-weight:700; }
+  td.s-wo  { color:#7D6608; background:#FEF9E7 !important; font-weight:700; }
+  td.s-hd  { color:#2471A3; background:#D6EAF8 !important; font-weight:700; }
+  td.s-a   { color:#C0392B; background:#FDEDEC !important; font-weight:700; }
+  td.s-l   { color:#884EA0; background:#F5EEF8 !important; font-weight:700; }
+  td.s-ho  { color:#1A5276; background:#EBF5FB !important; font-weight:700; }
+  td.s-tot { color:#fff;    background:#117A65 !important; font-weight:700; }
+  td.s-pp  { color:#7D3C98; background:#E8DAEF !important; font-weight:700; }
+  td.s-tp  { color:#fff;    background:#922B21 !important; font-weight:800; font-size:0.88rem; }
+
+  tr.total-row td {
+    background:var(--navy) !important; color:#fff; font-weight:700;
+    font-family:'Rajdhani',sans-serif; font-size:0.82rem;
+    border:1px solid rgba(255,255,255,0.1);
+  }
+  tr.total-row td.total-label { text-align:center; }
+
+  .toast {
+    position:fixed; bottom:24px; right:24px; background:#1E8449; color:#fff;
+    padding:10px 20px; border-radius:8px; font-weight:600; font-size:0.9rem;
+    box-shadow:0 4px 16px rgba(0,0,0,0.2); transform:translateY(80px);
+    opacity:0; transition:all 0.3s ease; z-index:999;
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+  ::-webkit-scrollbar { height:6px; width:6px; }
+  ::-webkit-scrollbar-track { background:#ddd; }
+  ::-webkit-scrollbar-thumb { background:var(--blue); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>CIMECHEL <span>ELECTRIC</span> — Attendance</h1>
+  <div class="controls">
+    <label>Month</label>
+    <select id="selMonth">
+      <option value="1">January</option><option value="2">February</option>
+      <option value="3">March</option><option value="4" selected>April</option>
+      <option value="5">May</option><option value="6">June</option>
+      <option value="7">July</option><option value="8">August</option>
+      <option value="9">September</option><option value="10">October</option>
+      <option value="11">November</option><option value="12">December</option>
+    </select>
+    <label>Year</label>
+    <input type="number" id="inpYear" value="2025" min="2020" max="2099" style="width:72px"/>
+    <button class="btn btn-reset" onclick="resetAll()">↺ Reset</button>
+    <button class="btn btn-export" onclick="exportExcel()">⬇ Export Excel</button>
+  </div>
+</div>
+
+<div class="legend-bar">
+  <b style="color:#555">Key:</b>
+  <span class="legend-item"><span class="legend-dot" style="background:#1E8449"></span><span style="color:#1E8449">P – Present</span></span>
+  <span class="legend-item"><span class="legend-dot" style="background:#C0392B"></span><span style="color:#C0392B">A – Absent</span></span>
+  <span class="legend-item"><span class="legend-dot" style="background:#2471A3"></span><span style="color:#2471A3">HD – Half Day</span></span>
+  <span class="legend-item"><span class="legend-dot" style="background:#884EA0"></span><span style="color:#884EA0">L – Leave</span></span>
+  <span class="legend-item"><span class="legend-dot" style="background:#1A5276"></span><span style="color:#1A5276">HO – Holiday</span></span>
+  <span class="legend-item"><span class="legend-dot" style="background:#7D3C98"></span><span style="color:#7D3C98">OT – Overtime (PP)</span></span>
+  <span class="legend-item"><span class="legend-dot" style="background:#F4D03F"></span><span style="color:#7D6608">WD – Sunday Off</span></span>
+  <span style="margin-left:10px;color:#922B21;font-weight:700">⭐ Total Payable = Total + PP</span>
+</div>
+
+<div class="table-wrap">
+  <table id="attTable">
+    <thead>
+      <tr class="h-main" id="hdrNum"></tr>
+      <tr class="h-day"  id="hdrDay"></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+    <tfoot id="tfoot"></tfoot>
+  </table>
+</div>
+
+<div class="toast" id="toast">✅ Excel exported successfully!</div>
+
+<script>
+const EMPLOYEES = [
+  ["Amit Kumar","Electrician"],["Ravi Sharma","Technician"],
+  ["Suresh Yadav","Helper"],["Mohd. Faiz","Supervisor"],
+  ["Pradeep Singh","Lineman"],["Deepak Gupta","Electrician"],
+  ["Vikas Tiwari","Technician"],["Sanjay Mishra","Helper"],
+  ["Rahul Verma","Lineman"],["Ankit Pandey","Electrician"],
+  ["Manoj Kumar","Technician"],["Rajesh Yadav","Helper"],
+  ["Santosh Singh","Electrician"],["Dinesh Gupta","Lineman"],
+  ["Arun Tiwari","Supervisor"],["Vinod Sharma","Helper"],
+  ["Naresh Verma","Technician"],["Harish Pandey","Electrician"],
+  ["Mukesh Yadav","Lineman"],["Rakesh Kumar","Helper"],
+];
+
+const MONTH_NAMES=["","January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY_ABBR=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+// Summary column definitions
+const SUM_COLS=[
+  {key:'p',  cls:'s-p',  lbl:'P'},
+  {key:'od', cls:'s-od', lbl:'OD'},
+  {key:'wo', cls:'s-wo', lbl:'WO'},
+  {key:'hd', cls:'s-hd', lbl:'HD'},
+  {key:'a',  cls:'s-a',  lbl:'A'},
+  {key:'l',  cls:'s-l',  lbl:'L'},
+  {key:'ho', cls:'s-ho', lbl:'HO'},
+  {key:'tot',cls:'s-tot',lbl:'Total'},
+  {key:'pp', cls:'s-pp', lbl:'PP'},
+  {key:'tp', cls:'s-tp', lbl:'Total\nPayable'},
+];
+
+let data=[];
+
+const getMonth=()=>parseInt(document.getElementById('selMonth').value);
+const getYear =()=>parseInt(document.getElementById('inpYear').value);
+const daysInMonth=(m,y)=>new Date(y,m,0).getDate();
+const isSunday=(y,m,d)=>new Date(y,m-1,d).getDay()===0;
+const isSaturday=(y,m,d)=>new Date(y,m-1,d).getDay()===6;
+
+function countSundays(m,y){
+  let s=0, days=daysInMonth(m,y);
+  for(let d=1;d<=days;d++) if(isSunday(y,m,d)) s++;
+  return s;
+}
+
+function initData(){
+  const m=getMonth(),y=getYear(),days=daysInMonth(m,y);
+  data=EMPLOYEES.map(()=>{
+    const row={};
+    for(let d=1;d<=31;d++) row[d]= d>days ? '' : isSunday(y,m,d) ? 'WD' : 'P';
+    return row;
+  });
+}
+
+function calcSummary(i,days,sundays){
+  const m=getMonth(),y=getYear();
+  let p=0,hd=0,a=0,l=0,ho=0,pp=0;
+  for(let d=1;d<=days;d++){
+    const v=data[i][d], sun=isSunday(y,m,d);
+    if(v==='P')       p++;
+    else if(v==='HD') hd++;
+    else if(v==='A')  a++;
+    else if(v==='L')  l++;
+    else if(v==='HO') ho++;
+    else if(v==='OT'){
+      if(sun) { pp++; }          // Sunday OT → only PP+1 (WO stays same)
+      else    { p++; pp++; }     // Normal OT → P+1, PP+1
+    }
+  }
+  const od  = 0;
+  const wo  = sundays;
+  const tot = days - a - l - ho;
+  const tp  = tot + pp;        // Total Payable = Total + PP (no WP)
+  return {p,od,wo,hd,a,l,ho,tot,pp,tp};
+}
+
+function buildTable(){
+  const m=getMonth(),y=getYear(),days=daysInMonth(m,y),sundays=countSundays(m,y);
+
+  // Header row 1 - numbers + summary
+  const hdrNum=document.getElementById('hdrNum');
+  hdrNum.innerHTML='';
+  [['S.No',2],['Name',2],['Desig.',2]].forEach(([t,rs])=>{
+    const th=document.createElement('th'); th.textContent=t; th.rowSpan=rs; hdrNum.appendChild(th);
+  });
+  for(let d=1;d<=days;d++){
+    const th=document.createElement('th'); th.textContent=d;
+    const wd=new Date(y,m-1,d).getDay();
+    if(wd===0) th.className='sun-col'; else if(wd===6) th.className='sat-col';
+    hdrNum.appendChild(th);
+  }
+  SUM_COLS.forEach(sc=>{
+    const th=document.createElement('th');
+    th.textContent=sc.lbl; th.rowSpan=2; th.className=sc.cls; hdrNum.appendChild(th);
+  });
+
+  // Header row 2 - day names
+  const hdrDay=document.getElementById('hdrDay');
+  hdrDay.innerHTML='';
+  for(let d=1;d<=days;d++){
+    const th=document.createElement('th');
+    const wd=new Date(y,m-1,d).getDay();
+    th.textContent=DAY_ABBR[wd];
+    if(wd===0) th.className='sun-col'; else if(wd===6) th.className='sat-col';
+    hdrDay.appendChild(th);
+  }
+
+  // Data rows
+  const tbody=document.getElementById('tbody');
+  tbody.innerHTML='';
+
+  EMPLOYEES.forEach((emp,i)=>{
+    const tr=document.createElement('tr'); tr.className='data-row';
+
+    const mkTd=(cls,val,edit)=>{
+      const td=document.createElement('td'); td.className=cls;
+      td.textContent=val; if(edit) td.contentEditable=true; return td;
+    };
+    tr.appendChild(mkTd('td-sno',i+1,false));
+    tr.appendChild(mkTd('td-name',emp[0],true));
+    tr.appendChild(mkTd('td-desig',emp[1],true));
+
+    for(let d=1;d<=days;d++){
+      const td=document.createElement('td'); td.className='day-cell';
+      const val=data[i][d], sun=isSunday(y,m,d);
+      const opts=sun?['WD','OT']:['P','A','HD','L','HO','OT'];
+
+      const sel=document.createElement('select'); sel.className='entry val-'+val;
+      opts.forEach(opt=>{
+        const o=document.createElement('option'); o.value=opt; o.textContent=opt;
+        if(opt===val) o.selected=true; sel.appendChild(o);
+      });
+      sel.onchange=function(){
+        data[i][d]=this.value;
+        this.className='entry val-'+this.value;
+        td.className='day-cell bg-'+this.value;
+        if(sun) td.classList.add('is-sun');
+        refreshRow(i,days,sundays);
+      };
+      td.className='day-cell bg-'+val;
+      if(sun) td.classList.add('is-sun');
+      td.appendChild(sel); tr.appendChild(td);
+    }
+
+    SUM_COLS.forEach(sc=>{
+      const td=document.createElement('td'); td.className=sc.cls; td.id=`s_${sc.key}_${i}`; tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+    refreshRow(i,days,sundays);
+  });
+
+  buildTotalRow(days);
+}
+
+function refreshRow(i,days,sundays){
+  const r=calcSummary(i,days,sundays);
+  SUM_COLS.forEach(sc=>{
+    const el=document.getElementById(`s_${sc.key}_${i}`);
+    if(el) el.textContent=r[sc.key];
+  });
+  refreshTotalRow();
+}
+
+function buildTotalRow(days){
+  const tfoot=document.getElementById('tfoot');
+  tfoot.innerHTML='';
+  const tr=document.createElement('tr'); tr.className='total-row';
+  const td1=document.createElement('td'); td1.colSpan=3; td1.className='total-label';
+  td1.textContent='GRAND TOTAL'; tr.appendChild(td1);
+  for(let d=1;d<=days;d++){ tr.appendChild(document.createElement('td')); }
+  SUM_COLS.forEach(sc=>{ const td=document.createElement('td'); td.id='t_'+sc.key; tr.appendChild(td); });
+  tfoot.appendChild(tr);
+  refreshTotalRow();
+}
+
+function refreshTotalRow(){
+  const n=EMPLOYEES.length, totals={};
+  SUM_COLS.forEach(sc=>totals[sc.key]=0);
+  for(let i=0;i<n;i++){
+    SUM_COLS.forEach(sc=>{
+      const el=document.getElementById(`s_${sc.key}_${i}`);
+      totals[sc.key]+= el?(parseFloat(el.textContent)||0):0;
+    });
+  }
+  SUM_COLS.forEach(sc=>{
+    const el=document.getElementById('t_'+sc.key);
+    if(el) el.textContent=totals[sc.key];
+  });
+}
+
+function resetAll(){ initData(); buildTable(); }
+
+function exportExcel(){
+  const m=getMonth(),y=getYear(),days=daysInMonth(m,y);
+  const mn=MONTH_NAMES[m], sundays=countSundays(m,y);
+  const wb=XLSX.utils.book_new(), rows=[];
+
+  rows.push(['CIMECHEL ELECTRIC — Attendance Register']);
+  rows.push([`Month: ${mn} ${y}  |  P=Present  A=Absent  HD=Half Day  L=Leave  HO=Holiday  OT=Overtime(PP)  WD=Sunday Off`]);
+  rows.push([]);
+
+  const hdr=['S.No','Employee Name','Designation'];
+  for(let d=1;d<=days;d++) hdr.push(d);
+  SUM_COLS.forEach(sc=>hdr.push(sc.lbl.replace('\n',' ')));
+  rows.push(hdr);
+
+  const drow=['','',''];
+  for(let d=1;d<=days;d++) drow.push(DAY_ABBR[new Date(y,m-1,d).getDay()]);
+  rows.push(drow);
+
+  document.querySelectorAll('#tbody tr.data-row').forEach((tr,i)=>{
+    const row=[i+1,
+      tr.querySelector('.td-name').textContent.trim(),
+      tr.querySelector('.td-desig').textContent.trim()];
+    for(let d=1;d<=days;d++) row.push(data[i][d]);
+    const r=calcSummary(i,days,sundays);
+    SUM_COLS.forEach(sc=>row.push(r[sc.key]));
+    rows.push(row);
+  });
+
+  const totRow=['','GRAND TOTAL',''];
+  for(let d=1;d<=days;d++) totRow.push('');
+  SUM_COLS.forEach(sc=>{ const el=document.getElementById('t_'+sc.key); totRow.push(el?el.textContent:''); });
+  rows.push(totRow);
+
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const colW=[{wch:5},{wch:22},{wch:14}];
+  for(let d=1;d<=days;d++) colW.push({wch:4});
+  SUM_COLS.forEach(()=>colW.push({wch:9}));
+  ws['!cols']=colW;
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:days+SUM_COLS.length+2}},{s:{r:1,c:0},e:{r:1,c:days+SUM_COLS.length+2}}];
+
+  XLSX.utils.book_append_sheet(wb,ws,'Attendance');
+  XLSX.writeFile(wb,`CIMECHEL_Attendance_${mn}_${y}.xlsx`);
+
+  const toast=document.getElementById('toast');
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),3000);
+}
+
+document.getElementById('selMonth').addEventListener('change',()=>{initData();buildTable();});
+document.getElementById('inpYear').addEventListener('change',()=>{initData();buildTable();});
+
+initData();
+buildTable();
+</script>
+</body>
+</html>
